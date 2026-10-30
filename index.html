@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Campus / City Navigation System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#090d16',
+                            card: '#131b2e',
+                            border: '#1e293b',
+                            accent: '#3b82f6',
+                            emerald: '#10b981',
+                            amber: '#f59e0b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #080c14;
+            color: #f3f4f6;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b1120;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        .glass-panel {
+            background: rgba(19, 27, 46, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- Header Navigation Bar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-slate-800 bg-slate-950/90 px-4 lg:px-8 py-3 shadow-md">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-blue-600 to-emerald-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-route text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                        PathFinder <span class="text-xs text-blue-400 bg-blue-900/40 px-2 py-0.5 rounded-full border border-blue-700/50">DAA Engine</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Smart Campus / City Navigation System (Dijkstra vs. A* Search)</p>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center space-x-2">
+                <button onclick="loadPreset('campus')" class="text-xs px-3 py-2 bg-slate-800 hover:bg-slate-700 text-blue-300 hover:text-white border border-blue-500/30 rounded-lg transition-all flex items-center space-x-1.5 font-medium shadow-sm">
+                    <i class="fa-solid fa-graduation-cap text-blue-400"></i>
+                    <span>Campus Map</span>
+                </button>
+                <button onclick="loadPreset('city')" class="text-xs px-3 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-300 hover:text-white border border-emerald-500/30 rounded-lg transition-all flex items-center space-x-1.5 font-medium shadow-sm">
+                    <i class="fa-solid fa-city text-emerald-400"></i>
+                    <span>City Metro</span>
+                </button>
+                <button onclick="runPathfindingAnimation()" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-500 hover:to-emerald-500 text-white font-semibold rounded-lg shadow-lg shadow-blue-600/30 hover:shadow-blue-600/50 transition-all text-xs md:text-sm flex items-center space-x-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Find Shortest Path</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 flex-1 space-y-6">
+
+        <!-- Top Route Selector Strip & Animation Speed Controls -->
+        <div class="glass-panel p-4 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
+            <!-- Route Selection Dropdowns -->
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div class="flex items-center space-x-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700/80">
+                    <span class="text-xs text-emerald-400 font-semibold flex items-center space-x-1">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <span>Start:</span>
+                    </span>
+                    <select id="select-start-node" onchange="onNodeSelectionChange()" class="bg-transparent text-xs text-white focus:outline-none cursor-pointer font-medium">
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+
+                <div class="text-slate-600">
+                    <i class="fa-solid fa-arrow-right"></i>
+                </div>
+
+                <div class="flex items-center space-x-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700/80">
+                    <span class="text-xs text-red-400 font-semibold flex items-center space-x-1">
+                        <i class="fa-solid fa-flag-checkered"></i>
+                        <span>Destination:</span>
+                    </span>
+                    <select id="select-dest-node" onchange="onNodeSelectionChange()" class="bg-transparent text-xs text-white focus:outline-none cursor-pointer font-medium">
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+
+                <!-- Algorithm Chooser -->
+                <div class="flex items-center space-x-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700/80">
+                    <span class="text-xs text-blue-400 font-semibold flex items-center space-x-1">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span>Algorithm:</span>
+                    </span>
+                    <select id="select-algorithm" class="bg-transparent text-xs text-white focus:outline-none cursor-pointer font-medium">
+                        <option value="both" selected>Compare Both (Dijkstra vs. A*)</option>
+                        <option value="dijkstra">Dijkstra's Algorithm Only</option>
+                        <option value="astar">A* Search Algorithm Only</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Animation Speed Control Slider -->
+            <div class="flex items-center space-x-3 w-full md:w-auto justify-end">
+                <span class="text-xs text-slate-400 font-medium flex items-center space-x-1">
+                    <i class="fa-solid fa-gauge-high text-amber-400"></i>
+                    <span>Speed:</span>
+                </span>
+                <input type="range" id="anim-speed" min="10" max="300" step="10" value="100" class="w-28 accent-blue-500 cursor-pointer">
+                <span id="speed-label" class="text-xs font-mono text-slate-300 w-12">100ms</span>
+            </div>
+        </div>
+
+        <!-- Main Content Area (Interactive Map Canvas + Control Panel) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Interactive Map Visualizer Canvas (2 Cols on LG) -->
+            <div class="lg:col-span-2 glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-semibold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-map text-blue-400"></i>
+                            <span>Interactive Map Canvas</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Click a landmark to set Start / Goal, or drag nodes to reposition manually.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="resetGraphVisuals()" class="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 transition-colors">
+                            <i class="fa-solid fa-rotate-left mr-1"></i>Reset Paths
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Canvas Visualizer Container -->
+                <div id="canvas-container" class="relative w-full h-[520px] bg-slate-950/90 rounded-xl border border-slate-800 overflow-hidden shadow-inner">
+                    <canvas id="map-canvas" class="w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                    
+                    <!-- Canvas Instructions Overlay -->
+                    <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md px-3 py-2 rounded-lg border border-slate-800 text-[11px] text-slate-300 flex items-center space-x-3 pointer-events-none">
+                        <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> <span>Start</span></span>
+                        <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> <span>Goal</span></span>
+                        <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> <span>Explored</span></span>
+                        <span class="flex items-center space-x-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span> <span>Shortest Path</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Side Panel: Custom Node/Edge Management & Navigation Details -->
+            <div class="space-y-6">
+                <!-- Add Custom Node / Road Controls -->
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+                    <h2 class="text-base font-semibold text-white flex items-center space-x-2 border-b border-slate-800 pb-3">
+                        <i class="fa-solid fa-sliders text-emerald-400"></i>
+                        <span>Custom Map Editor</span>
+                    </h2>
+
+                    <!-- Add Landmark Form -->
+                    <form id="form-add-node" onsubmit="handleAddNode(event)" class="space-y-3">
+                        <p class="text-xs font-semibold text-slate-300">Add Landmark Node</p>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="text" id="node-name" placeholder="Name" required class="col-span-3 bg-slate-900/80 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <input type="number" id="node-x" placeholder="X (0-800)" min="20" max="800" required class="bg-slate-900/80 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <input type="number" id="node-y" placeholder="Y (0-500)" min="20" max="500" required class="bg-slate-900/80 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500">
+                            <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs rounded-lg transition-colors flex items-center justify-center">
+                                <i class="fa-solid fa-plus mr-1"></i> Add
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Add Road Connection Form -->
+                    <form id="form-add-edge" onsubmit="handleAddEdge(event)" class="space-y-3 pt-2 border-t border-slate-800/80">
+                        <p class="text-xs font-semibold text-slate-300">Connect Road / Path</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="edge-from" required class="bg-slate-900/80 border border-slate-700/80 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+                                <!-- Dynamic Options -->
+                            </select>
+                            <select id="edge-to" required class="bg-slate-900/80 border border-slate-700/80 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+                                <!-- Dynamic Options -->
+                            </select>
+                        </div>
+                        <div class="flex space-x-2">
+                            <input type="number" id="edge-weight" placeholder="Distance (Weight)" min="1" step="0.1" required class="flex-1 bg-slate-900/80 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500">
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-1.5 text-xs rounded-lg transition-colors flex items-center justify-center">
+                                <i class="fa-solid fa-link mr-1"></i> Connect
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Navigation Path Summary Box -->
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3">
+                    <h3 class="text-sm font-semibold text-white flex items-center space-x-2">
+                        <i class="fa-solid fa-location-arrow text-amber-400"></i>
+                        <span>Calculated Path Summary</span>
+                    </h3>
+                    <div id="path-summary-box" class="bg-slate-950/80 border border-slate-800 p-3 rounded-xl text-xs space-y-2 text-slate-300 min-h-[90px] flex items-center justify-center text-center">
+                        <p class="text-slate-500 italic">Select Start & Destination, then click 'Find Shortest Path' to compute route.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Algorithm Speed & Metric Comparison Dashboard -->
+        <div class="glass-panel p-5 rounded-2xl border border-slate-800 space-y-4">
+            <h2 class="text-base font-semibold text-white flex items-center space-x-2">
+                <i class="fa-solid fa-chart-simple text-purple-400"></i>
+                <span>Algorithm Speed & Efficiency Comparison Dashboard</span>
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Dijkstra Card -->
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-3 relative overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                            <h3 class="font-bold text-white text-sm">Dijkstra's Algorithm</h3>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">f(n) = g(n)</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-2 text-center pt-1">
+                        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Distance</p>
+                            <p id="dijkstra-metric-dist" class="text-sm font-bold text-blue-400 mt-0.5">--</p>
+                        </div>
+                        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Evaluated</p>
+                            <p id="dijkstra-metric-visited" class="text-sm font-bold text-white mt-0.5">--</p>
+                        </div>
+                        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Exec Time</p>
+                            <p id="dijkstra-metric-time" class="text-sm font-bold text-emerald-400 mt-0.5">--</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- A* Search Card -->
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 space-y-3 relative overflow-hidden">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                            <h3 class="font-bold text-white text-sm">A* Search Algorithm</h3>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">f(n) = g(n) + h(n)</span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 text-center pt-1">
+                        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Distance</p>
+                            <p id="astar-metric-dist" class="text-sm font-bold text-emerald-400 mt-0.5">--</p>
+                        </div>
+                        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Evaluated</p>
+                            <p id="astar-metric-visited" class="text-sm font-bold text-white mt-0.5">--</p>
+                        </div>
+                        <div class="bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Exec Time</p>
+                            <p id="astar-metric-time" class="text-sm font-bold text-emerald-400 mt-0.5">--</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-slate-950 py-4 px-4 text-center text-xs text-slate-500 mt-8">
+        <p>Design & Analysis of Algorithms (DAA) Project • Shortest Path Graph Optimization (Dijkstra vs. A* Euclidean Search)</p>
+    </footer>
+
+    <!-- Toast Notification Box -->
+    <div id="toast" class="fixed bottom-5 right-5 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white border border-slate-700 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 z-50">
+        <div id="toast-icon" class="text-blue-400">
+            <i class="fa-solid fa-circle-info"></i>
+        </div>
+        <div id="toast-message" class="text-xs md:text-sm font-medium">Notification message</div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        // ==========================================
+        // STATE MANAGEMENT
+        // ==========================================
+        let nodes = [];       // Array of { id, name, x, y }
+        let edges = [];       // Array of { from, to, weight }
+        let startNodeId = null;
+        let destNodeId = null;
+
+        // Visualizer State
+        let canvas, ctx;
+        let draggedNode = null;
+        let animationInProgress = false;
+        let animationTimer = null;
+
+        // Pathfinding Visualization Caches
+        let visitedSequence = [];
+        let finalPath = [];
+
+        // Speed Slider Config
+        let animationDelay = 100;
+
+        // ==========================================
+        // PRESET DATASETS
+        // ==========================================
+        const CAMPUS_PRESET = {
+            nodes: [
+                { id: 0, name: "Main Gate", x: 80, y: 400 },
+                { id: 1, name: "Library", x: 220, y: 280 },
+                { id: 2, name: "CS Department", x: 380, y: 150 },
+                { id: 3, name: "Mechanical Block", x: 400, y: 380 },
+                { id: 4, name: "Student Cafeteria", x: 550, y: 260 },
+                { id: 5, name: "Sports Complex", x: 700, y: 380 },
+                { id: 6, name: "Hostel Quad", x: 720, y: 120 }
+            ],
+            edges: [
+                { from: 0, to: 1, weight: 150 },
+                { from: 0, to: 3, weight: 320 },
+                { from: 1, to: 2, weight: 180 },
+                { from: 1, to: 3, weight: 200 },
+                { from: 2, to: 4, weight: 210 },
+                { from: 2, to: 6, weight: 350 },
+                { from: 3, to: 4, weight: 190 },
+                { from: 3, to: 5, weight: 300 },
+                { from: 4, to: 5, weight: 180 },
+                { from: 4, to: 6, weight: 220 },
+                { from: 5, to: 6, weight: 270 }
+            ],
+            start: 0,
+            dest: 6
+        };
+
+        const CITY_PRESET = {
+            nodes: [
+                { id: 0, name: "Airport Terminal", x: 80, y: 100 },
+                { id: 1, name: "Tech Park North", x: 280, y: 80 },
+                { id: 2, name: "City Central Station", x: 350, y: 260 },
+                { id: 3, name: "West Shopping District", x: 120, y: 320 },
+                { id: 4, name: "Financial Center", x: 560, y: 140 },
+                { id: 5, name: "South Harbor", x: 500, y: 420 },
+                { id: 6, name: "Eastern Residential Hub", x: 730, y: 300 }
+            ],
+            edges: [
+                { from: 0, to: 1, weight: 210 },
+                { from: 0, to: 3, weight: 240 },
+                { from: 1, to: 2, weight: 190 },
+                { from: 1, to: 4, weight: 290 },
+                { from: 3, to: 2, weight: 230 },
+                { from: 3, to: 5, weight: 390 },
+                { from: 2, to: 4, weight: 230 },
+                { from: 2, to: 5, weight: 210 },
+                { from: 4, to: 6, weight: 220 },
+                { from: 5, to: 6, weight: 250 }
+            ],
+            start: 0,
+            dest: 6
+        };
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            initCanvas();
+            loadPreset('campus');
+
+            // Speed slider handler
+            const speedSlider = document.getElementById('anim-speed');
+            speedSlider.addEventListener('input', (e) => {
+                animationDelay = 310 - parseInt(e.target.value);
+                document.getElementById('speed-label').innerText = `${animationDelay}ms`;
+            });
+        });
+
+        function initCanvas() {
+            canvas = document.getElementById('map-canvas');
+            if (!canvas) return;
+            ctx = canvas.getContext('2d');
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            // Interactivity: Dragging nodes & Clicking to set Start/Dest
+            let isDragging = false;
+            let dragStartTime = 0;
+
+            canvas.addEventListener('mousedown', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                for (let node of nodes) {
+                    const dist = Math.hypot(node.x - mouseX, node.y - mouseY);
+                    if (dist < 20) {
+                        draggedNode = node;
+                        isDragging = true;
+                        dragStartTime = Date.now();
+                        break;
+                    }
+                }
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDragging && draggedNode) {
+                    const rect = canvas.getBoundingClientRect();
+                    draggedNode.x = Math.max(30, Math.min(canvas.width - 30, e.clientX - rect.left));
+                    draggedNode.y = Math.max(30, Math.min(canvas.height - 30, e.clientY - rect.top));
+                    drawMap();
+                }
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                if (isDragging && draggedNode) {
+                    const dragDuration = Date.now() - dragStartTime;
+                    // If it was a quick click rather than a drag, select the node
+                    if (dragDuration < 200) {
+                        if (startNodeId === draggedNode.id) {
+                            // Do nothing
+                        } else {
+                            destNodeId = draggedNode.id;
+                            updateDropdownSelectors();
+                            resetGraphVisuals();
+                            showToast(`Destination set to ${draggedNode.name}`, 'info');
+                        }
+                    }
+                }
+                isDragging = false;
+                draggedNode = null;
+            });
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            if (container && container.clientWidth > 0) {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight || 520;
+            }
+            drawMap();
+        }
+
+        // ==========================================
+        // PRESET & DROPDOWN MANAGEMENT
+        // ==========================================
+        function loadPreset(type) {
+            if (animationInProgress) clearTimeout(animationTimer);
+            animationInProgress = false;
+
+            const data = type === 'city' ? CITY_PRESET : CAMPUS_PRESET;
+            nodes = JSON.parse(JSON.stringify(data.nodes));
+            edges = JSON.parse(JSON.stringify(data.edges));
+            startNodeId = data.start;
+            destNodeId = data.dest;
+
+            updateDropdownSelectors();
+            resetGraphVisuals();
+            showToast(`Loaded ${type === 'city' ? 'Smart City Metro Map' : 'University Campus Map'} preset`, 'success');
+        }
+
+        function updateDropdownSelectors() {
+            const startSelect = document.getElementById('select-start-node');
+            const destSelect = document.getElementById('select-dest-node');
+            const fromSelect = document.getElementById('edge-from');
+            const toSelect = document.getElementById('edge-to');
+
+            const optionsHtml = nodes.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
+
+            startSelect.innerHTML = optionsHtml;
+            destSelect.innerHTML = optionsHtml;
+            fromSelect.innerHTML = optionsHtml;
+            toSelect.innerHTML = optionsHtml;
+
+            if (startNodeId !== null) startSelect.value = startNodeId;
+            if (destNodeId !== null) destSelect.value = destNodeId;
+        }
+
+        function onNodeSelectionChange() {
+            startNodeId = parseInt(document.getElementById('select-start-node').value);
+            destNodeId = parseInt(document.getElementById('select-dest-node').value);
+            resetGraphVisuals();
+        }
+
+        function resetGraphVisuals() {
+            if (animationInProgress) clearTimeout(animationTimer);
+            animationInProgress = false;
+            visitedSequence = [];
+            finalPath = [];
+
+            // Reset Metrics Dashboard
+            document.getElementById('dijkstra-metric-dist').innerText = '--';
+            document.getElementById('dijkstra-metric-visited').innerText = '--';
+            document.getElementById('dijkstra-metric-time').innerText = '--';
+
+            document.getElementById('astar-metric-dist').innerText = '--';
+            document.getElementById('astar-metric-visited').innerText = '--';
+            document.getElementById('astar-metric-time').innerText = '--';
+
+            document.getElementById('path-summary-box').innerHTML = `<p class="text-slate-500 italic">Select Start & Destination, then click 'Find Shortest Path' to compute route.</p>`;
+
+            drawMap();
+        }
+
+        // ==========================================
+        // CUSTOM NODE / EDGE HANDLERS
+        // ==========================================
+        function handleAddNode(e) {
+            e.preventDefault();
+            const name = document.getElementById('node-name').value.trim();
+            const x = parseInt(document.getElementById('node-x').value);
+            const y = parseInt(document.getElementById('node-y').value);
+
+            if (!name || isNaN(x) || isNaN(y)) return;
+
+            const newId = nodes.length > 0 ? Math.max(...nodes.map(n => n.id)) + 1 : 0;
+            nodes.push({ id: newId, name, x, y });
+
+            document.getElementById('form-add-node').reset();
+            updateDropdownSelectors();
+            drawMap();
+            showToast(`Added landmark ${name}`, 'success');
+        }
+
+        function handleAddEdge(e) {
+            e.preventDefault();
+            const from = parseInt(document.getElementById('edge-from').value);
+            const to = parseInt(document.getElementById('edge-to').value);
+            const weight = parseFloat(document.getElementById('edge-weight').value);
+
+            if (from === to) {
+                showToast('Cannot connect a landmark to itself', 'error');
+                return;
+            }
+
+            // Check if edge exists
+            const existing = edges.find(e => (e.from === from && e.to === to) || (e.from === to && e.to === from));
+            if (existing) {
+                existing.weight = weight; // update
+                showToast('Updated existing road distance', 'info');
+            } else {
+                edges.push({ from, to, weight });
+                showToast('Added road connection', 'success');
+            }
+
+            document.getElementById('form-add-edge').reset();
+            resetGraphVisuals();
+        }
+
+        // ==========================================
+        // DAA PATHFINDING ENGINES (DIJKSTRA & A*)
+        // ==========================================
+        function euclideanHeuristic(nodeA, nodeB) {
+            return Math.hypot(nodeA.x - nodeB.x, nodeA.y - nodeB.y);
+        }
+
+        function getAdjacencyList() {
+            const adj = {};
+            nodes.forEach(n => adj[n.id] = []);
+            edges.forEach(e => {
+                adj[e.from].push({ node: e.to, weight: e.weight });
+                adj[e.to].push({ node: e.from, weight: e.weight });
+            });
+            return adj;
+        }
+
+        function runDijkstraAlgorithm(startId, goalId) {
+            const startTime = performance.now();
+            const adj = getAdjacencyList();
+
+            const dist = {};
+            const parent = {};
+            const visited = new Set();
+            const visitedOrder = [];
+
+            nodes.forEach(n => {
+                dist[n.id] = Infinity;
+                parent[n.id] = null;
+            });
+            dist[startId] = 0;
+
+            while (true) {
+                let u = null;
+                let minDist = Infinity;
+
+                for (let n of nodes) {
+                    if (!visited.has(n.id) && dist[n.id] < minDist) {
+                        minDist = dist[n.id];
+                        u = n.id;
+                    }
+                }
+
+                if (u === null || u === goalId) {
+                    if (u === goalId) visitedOrder.push(u);
+                    break;
+                }
+
+                visited.add(u);
+                visitedOrder.push(u);
+
+                for (let neighbor of adj[u]) {
+                    if (!visited.has(neighbor.node)) {
+                        const alt = dist[u] + neighbor.weight;
+                        if (alt < dist[neighbor.node]) {
+                            dist[neighbor.node] = alt;
+                            parent[neighbor.node] = u;
+                        }
+                    }
+                }
+            }
+
+            const endTime = performance.now();
+
+            // Reconstruct Path
+            const path = [];
+            let curr = goalId;
+            if (dist[goalId] !== Infinity) {
+                while (curr !== null) {
+                    path.unshift(curr);
+                    curr = parent[curr];
+                }
+            }
+
+            return {
+                distance: dist[goalId],
+                path,
+                visitedOrder,
+                time: (endTime - startTime).toFixed(2)
+            };
+        }
+
+        function runAStarAlgorithm(startId, goalId) {
+            const startTime = performance.now();
+            const adj = getAdjacencyList();
+            const goalNode = nodes.find(n => n.id === goalId);
+
+            const gScore = {};
+            const fScore = {};
+            const parent = {};
+            const openSet = new Set([startId]);
+            const visitedOrder = [];
+
+            nodes.forEach(n => {
+                gScore[n.id] = Infinity;
+                fScore[n.id] = Infinity;
+                parent[n.id] = null;
+            });
+
+            gScore[startId] = 0;
+            fScore[startId] = euclideanHeuristic(nodes.find(n => n.id === startId), goalNode);
+
+            while (openSet.size > 0) {
+                let current = null;
+                let lowestF = Infinity;
+
+                for (let nodeId of openSet) {
+                    if (fScore[nodeId] < lowestF) {
+                        lowestF = fScore[nodeId];
+                        current = nodeId;
+                    }
+                }
+
+                visitedOrder.push(current);
+
+                if (current === goalId) break;
+
+                openSet.delete(current);
+
+                for (let neighbor of adj[current]) {
+                    const tentativeG = gScore[current] + neighbor.weight;
+                    if (tentativeG < gScore[neighbor.node]) {
+                        parent[neighbor.node] = current;
+                        gScore[neighbor.node] = tentativeG;
+                        const h = euclideanHeuristic(nodes.find(n => n.id === neighbor.node), goalNode);
+                        fScore[neighbor.node] = gScore[neighbor.node] + h;
+                        openSet.add(neighbor.node);
+                    }
+                }
+            }
+
+            const endTime = performance.now();
+
+            const path = [];
+            let curr = goalId;
+            if (gScore[goalId] !== Infinity) {
+                while (curr !== null) {
+                    path.unshift(curr);
+                    curr = parent[curr];
+                }
+            }
+
+            return {
+                distance: gScore[goalId],
+                path,
+                visitedOrder,
+                time: (endTime - startTime).toFixed(2)
+            };
+        }
+
+        // ==========================================
+        // ANIMATION & VISUALIZER EXECUTION
+        // ==========================================
+        function runPathfindingAnimation() {
+            if (startNodeId === destNodeId) {
+                showToast('Start and Destination cannot be the same landmark', 'error');
+                return;
+            }
+
+            if (animationInProgress) clearTimeout(animationTimer);
+
+            const algorithmChoice = document.getElementById('select-algorithm').value;
+            const dijkstraResult = runDijkstraAlgorithm(startNodeId, destNodeId);
+            const astarResult = runAStarAlgorithm(startNodeId, destNodeId);
+
+            // Update Metrics Dashboard
+            document.getElementById('dijkstra-metric-dist').innerText = dijkstraResult.distance !== Infinity ? `${dijkstraResult.distance.toFixed(1)} m` : 'Unreachable';
+            document.getElementById('dijkstra-metric-visited').innerText = dijkstraResult.visitedOrder.length;
+            document.getElementById('dijkstra-metric-time').innerText = `${dijkstraResult.time} ms`;
+
+            document.getElementById('astar-metric-dist').innerText = astarResult.distance !== Infinity ? `${astarResult.distance.toFixed(1)} m` : 'Unreachable';
+            document.getElementById('astar-metric-visited').innerText = astarResult.visitedOrder.length;
+            document.getElementById('astar-metric-time').innerText = `${astarResult.time} ms`;
+
+            const activeResult = algorithmChoice === 'dijkstra' ? dijkstraResult : astarResult;
+
+            if (activeResult.path.length === 0) {
+                showToast('No connecting path exists between selected points', 'error');
+                resetGraphVisuals();
+                return;
+            }
+
+            // Animate exploration
+            animationInProgress = true;
+            visitedSequence = [];
+            finalPath = [];
+
+            let step = 0;
+            const seqToAnimate = activeResult.visitedOrder;
+
+            function animateStep() {
+                if (step < seqToAnimate.length) {
+                    visitedSequence.push(seqToAnimate[step]);
+                    drawMap();
+                    step++;
+                    animationTimer = setTimeout(animateStep, animationDelay);
+                } else {
+                    finalPath = activeResult.path;
+                    animationInProgress = false;
+                    drawMap();
+                    renderPathSummary(activeResult);
+                    showToast(`Optimal route found via ${algorithmChoice.toUpperCase()}!`, 'success');
+                }
+            }
+
+            animateStep();
+        }
+
+        function renderPathSummary(res) {
+            const summaryBox = document.getElementById('path-summary-box');
+            const pathNames = res.path.map(id => nodes.find(n => n.id === id).name);
+
+            summaryBox.innerHTML = `
+                <div class="space-y-2 w-full text-left">
+                    <div class="flex items-center justify-between text-xs font-semibold text-emerald-400">
+                        <span>Total Distance: ${res.distance.toFixed(1)} units</span>
+                        <span class="text-slate-400 font-mono">${res.path.length - 1} Segment(s)</span>
+                    </div>
+                    <div class="text-[11px] text-slate-300 flex flex-wrap items-center gap-1">
+                        ${pathNames.map((name, i) => `
+                            <span class="bg-blue-900/50 text-blue-200 border border-blue-700/50 px-2 py-0.5 rounded">${name}</span>
+                            ${i < pathNames.length - 1 ? '<i class="fa-solid fa-chevron-right text-[9px] text-slate-500"></i>' : ''}
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // CANVAS RENDERING ENGINE
+        // ==========================================
+        function drawMap() {
+            if (!ctx || !canvas) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Draw All Edges
+            edges.forEach(edge => {
+                const source = nodes.find(n => n.id === edge.from);
+                const target = nodes.find(n => n.id === edge.to);
+                if (!source || !target) return;
+
+                const isFinalPathEdge = isEdgeInPath(edge.from, edge.to, finalPath);
+
+                ctx.beginPath();
+                ctx.moveTo(source.x, source.y);
+                ctx.lineTo(target.x, target.y);
+
+                if (isFinalPathEdge) {
+                    ctx.strokeStyle = '#3b82f6';
+                    ctx.lineWidth = 5;
+                } else {
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.lineWidth = 2;
+                }
+                ctx.stroke();
+
+                // Draw Edge Weight Label
+                const midX = (source.x + target.x) / 2;
+                const midY = (source.y + target.y) / 2;
+
+                ctx.fillStyle = '#0f172a';
+                ctx.beginPath();
+                ctx.arc(midX, midY, 11, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = isFinalPathEdge ? '#60a5fa' : '#94a3b8';
+                ctx.font = '10px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${edge.weight}`, midX, midY);
+            });
+
+            // 2. Draw All Nodes
+            nodes.forEach(node => {
+                const isStart = node.id === startNodeId;
+                const isDest = node.id === destNodeId;
+                const isVisited = visitedSequence.includes(node.id);
+                const isFinalPathNode = finalPath.includes(node.id);
+
+                let nodeColor = '#334155'; // Default
+                if (isVisited) nodeColor = '#f59e0b'; // Explored (Amber)
+                if (isFinalPathNode) nodeColor = '#3b82f6'; // Shortest Path (Blue)
+                if (isStart) nodeColor = '#10b981'; // Start (Emerald)
+                if (isDest) nodeColor = '#ef4444'; // Goal (Red)
+
+                // Outer Aura
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 20, 0, Math.PI * 2);
+                ctx.fillStyle = nodeColor + '33';
+                ctx.fill();
+
+                // Main Circle
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 14, 0, Math.PI * 2);
+                ctx.fillStyle = nodeColor;
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Node Icon/Text
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`${node.id}`, node.x, node.y);
+
+                // Landmark Name Label
+                ctx.fillStyle = '#f3f4f6';
+                ctx.font = '500 12px Inter, sans-serif';
+                ctx.fillText(node.name, node.x, node.y + 28);
+            });
+        }
+
+        function isEdgeInPath(u, v, path) {
+            if (path.length < 2) return false;
+            for (let i = 0; i < path.length - 1; i++) {
+                if ((path[i] === u && path[i + 1] === v) || (path[i] === v && path[i + 1] === u)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // ==========================================
+        // TOAST NOTIFICATIONS
+        // ==========================================
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            const iconEl = document.getElementById('toast-icon');
+
+            msgEl.innerText = message;
+            if (type === 'success') {
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>';
+            } else if (type === 'error') {
+                iconEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-400 text-lg"></i>';
+            } else {
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-info text-blue-400 text-lg"></i>';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
